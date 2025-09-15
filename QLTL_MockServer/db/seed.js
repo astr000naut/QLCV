@@ -71,6 +71,23 @@ async function seedDatabase() {
     }
     console.log('Documents seeded.');
 
+    // Seed tasks
+    for (const t of seedData.tasks) {
+        const tRes = await client.query(
+            'INSERT INTO tasks (id, name, description, status, assigneeId, dueDate, createdBy, createdAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+            [t.id, t.name, t.description, t.status, t.assigneeId, t.dueDate, t.createdBy, t.createdAt]
+        );
+        const taskId = tRes.rows[0].id;
+        for (const approverId of t.approverIds) {
+            await client.query('INSERT INTO task_approvers (taskId, approverId) VALUES ($1, $2)', [taskId, approverId]);
+        }
+        for (const documentId of t.documentIds) {
+            await client.query('INSERT INTO task_documents (taskId, documentId) VALUES ($1, $2)', [taskId, documentId]);
+        }
+        await client.query('INSERT INTO task_history (taskId, action, actorId, comment, timestamp) VALUES ($1, $2, $3, $4, $5)', [taskId, 'created', t.createdBy, null, t.createdAt]);
+    }
+    console.log('Tasks seeded.');
+
     await client.query('COMMIT');
     console.log('Database seed successful!');
   } catch (e) {

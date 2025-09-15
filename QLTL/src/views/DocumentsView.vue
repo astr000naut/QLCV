@@ -18,6 +18,7 @@ import { useConfirm } from "primevue/useconfirm";
 import DocumentStatusBadge from '../components/DocumentStatusBadge.vue';
 import DocumentCard from '../components/DocumentCard.vue';
 import DocumentFormDialog from '../components/DocumentFormDialog.vue';
+import UploadDocumentDialog from '../components/UploadDocumentDialog.vue';
 import SelectButton from 'primevue/selectbutton';
 
 
@@ -42,6 +43,7 @@ const viewMode = ref('table');
 // Dialog state
 const isDialogVisible = ref(false);
 const editingDocument = ref(null);
+const isUploadVisible = ref(false);
 
 const viewOptions = [
     { icon: 'pi pi-list', value: 'table' },
@@ -165,7 +167,7 @@ const formatDateTime = (dateTime) => {
       <div>
         <h1 class="text-3xl font-bold">Quản lý Tài liệu</h1>
       </div>
-      <Button label="Tải lên" icon="pi pi-upload" @click="router.push('/upload')" />
+      <Button label="Tải lên" icon="pi pi-upload" @click="isUploadVisible = true" />
     </div>
 
     <!-- Filters and Search -->
@@ -235,12 +237,7 @@ const formatDateTime = (dateTime) => {
                 </template>
             </Column>
             <Column field="uploader.name" header="Người tải lên"></Column>
-            <Column field="handler.name" header="Người xử lý"></Column>
-            <Column field="deadline" header="Hạn xử lý">
-                <template #body="slotProps">
-                    {{ formatDateTime(slotProps.data.deadline) }}
-                </template>
-            </Column>
+            <!-- Removed handler and deadline columns per new design -->
             <Column field="uploadedAt" header="Ngày tải lên">
                 <template #body="slotProps">
                     {{ formatDateTime(slotProps.data.uploadedAt) }}
@@ -293,6 +290,12 @@ const formatDateTime = (dateTime) => {
         @submit="handleSaveDocument"
         :initialData="editingDocument"
         title="Chỉnh sửa thông tin tài liệu"
+    />
+
+    <UploadDocumentDialog
+      :visible="isUploadVisible"
+      @update:visible="isUploadVisible = $event"
+      @uploaded="fetchDocuments"
     />
   </div>
 </template>

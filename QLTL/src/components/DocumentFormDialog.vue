@@ -20,9 +20,7 @@ const toast = useToast();
 
 const defaultFormData = {
     name: "",
-    description: "",
-    handlerId: null,
-    deadline: null
+    description: ""
 };
 
 const formData = ref({ ...defaultFormData });
@@ -52,10 +50,7 @@ watch(() => props.visible, (newValue) => {
       // When editing, populate form with existing data
       formData.value = {
           ...props.initialData,
-          // API might return full user object, ensure we only have the ID
-          handlerId: props.initialData.handler?.id || props.initialData.handlerId,
-          // Convert deadline string back to Date object for DatePicker
-          deadline: props.initialData.deadline ? new Date(props.initialData.deadline) : null
+          
       };
     } else {
       // When creating, reset to default (although this dialog is for editing only for now)
@@ -67,9 +62,7 @@ watch(() => props.visible, (newValue) => {
 const handleSubmit = () => {
   const dataToSend = {
     name: formData.value.name,
-    description: formData.value.description,
-    handlerId: formData.value.handlerId,
-    deadline: formData.value.deadline ? formData.value.deadline.toISOString() : null
+    description: formData.value.description
   };
   
   emit('submit', dataToSend);
@@ -95,32 +88,7 @@ const closeDialog = () => {
           placeholder="Nhập mô tả chi tiết về tài liệu..." rows="3" class="w-full" />
         </div>
 
-      <div class="field">
-          <label for="handler">Người xử lý *</label>
-          <Dropdown 
-            class="w-full"
-            id="handler"
-            v-model="formData.handlerId" 
-            :options="users" 
-            optionLabel="name" 
-            optionValue="id" 
-            placeholder="Chọn người xử lý"
-            :loading="loadingUsers"
-            required
-          />
-        </div>
-
-        <div class="field">
-          <label for="deadline">Hạn xử lý</label>
-          <DatePicker 
-            class="w-full"
-            id="deadline"
-            v-model="formData.deadline" 
-            placeholder="Chọn ngày hết hạn"
-            dateFormat="dd/mm/yy"
-            showIcon
-          />
-        </div>
+      
 
       <div class="flex justify-end gap-2 mt-6">
         <Button label="Hủy" severity="secondary" @click="closeDialog" />

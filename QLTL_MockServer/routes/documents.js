@@ -18,10 +18,9 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = `
-        SELECT d.*, u.name as uploader_name, h.name as handler_name
+        SELECT d.*, u.name as uploader_name
         FROM documents d
         LEFT JOIN users u ON d.uploaderId = u.id
-        LEFT JOIN users h ON d.handlerId = h.id
     `;
     let countQuery = `SELECT COUNT(*) FROM documents`;
     const params = [];
@@ -69,12 +68,7 @@ router.get('/', async (req, res) => {
                 id: doc.uploaderid,
                 name: doc.uploader_name
             },
-            handler: {
-                id: doc.handlerid,
-                name: doc.handler_name
-            },
             uploadedAt: doc.uploadedat,
-            deadline: doc.deadline,
             folderId: doc.folderid,
             // History would need a separate query if needed in this list view
         }));
@@ -126,10 +120,9 @@ router.get('/:id', async (req, res) => {
     try {
         // Get document details
         const docQuery = `
-            SELECT d.*, u.id as uploader_id, u.name as uploader_name, h.id as handler_id, h.name as handler_name
+            SELECT d.*, u.id as uploader_id, u.name as uploader_name
             FROM documents d
             LEFT JOIN users u ON d.uploaderId = u.id
-            LEFT JOIN users h ON d.handlerId = h.id
             WHERE d.id = $1
         `;
         const { rows: docRows } = await db.query(docQuery, [id]);
@@ -153,12 +146,7 @@ router.get('/:id', async (req, res) => {
                 id: doc.uploader_id,
                 name: doc.uploader_name
             },
-            handler: {
-                id: doc.handler_id,
-                name: doc.handler_name
-            },
             uploadedAt: doc.uploadedat,
-            deadline: doc.deadline,
             folderId: doc.folderid,
             history: historyRows.map(h => ({
                 action: h.action,
@@ -177,7 +165,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/documents - Upload a new document
 router.post('/', upload.single('file'), async (req, res) => {
-    const { name, description, folderId, handlerId, deadline } = req.body;
+    const { name, description, folderId } = req.body;
     const uploaderId = req.user.id;
     const parsedFolderId = folderId ? parseInt(folderId, 10) : null;
 
@@ -196,11 +184,11 @@ router.post('/', upload.single('file'), async (req, res) => {
 
         // Insert into PostgreSQL
         const query = `
-            INSERT INTO documents (name, description, folderId, status, fileUrl, uploaderId, handlerId, deadline, uploadedAt)
-            VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, NOW())
+            INSERT INTO documents (name, description, folderId, status, fileUrl, uploaderId, uploadedAt)
+            VALUES ($1, $2, $3, 'pending', $4, $5, NOW())
             RETURNING *;
         `;
-        const { rows } = await db.query(query, [name, description, parsedFolderId, fileUrl, uploaderId, handlerId, deadline]);
+        const { rows } = await db.query(query, [name, description, parsedFolderId, fileUrl, uploaderId]);
         const newDoc = rows[0];
 
         // Add to history
@@ -223,12 +211,12 @@ router.post('/', upload.single('file'), async (req, res) => {
 // PUT /api/documents/{id}
 router.put('/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, description, handlerId, deadline } = req.body;
+    const { name, description } = req.body;
     try {
         const query = `
-            UPDATE documents SET name = $1, description = $2, handlerId = $3, deadline = $4
-            WHERE id = $5 RETURNING *`;
-        const { rows } = await db.query(query, [name, description, handlerId, deadline, id]);
+            UPDATE documents SET name = $1, description = $2
+            WHERE id = $3 RETURNING *`;
+        const { rows } = await db.query(query, [name, description, id]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Document not found' });
         }

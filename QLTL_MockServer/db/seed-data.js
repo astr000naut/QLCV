@@ -70,20 +70,37 @@ const generateDocuments = (count, users, folders) => {
     return documents;
 };
 
-const generatePermissions = () => {
-    return [
-        { id: "reports:overview", name: "Báo cáo tổng quan" },
-        { id: "reports:performance", name: "Báo cáo hiệu suất xử lý tài liệu" },
-        { id: "reports:count", name: "Báo cáo số lượng tài liệu" },
-        { id: "documents:list", name: "Xem danh sách tài liệu" },
-        { id: "documents:upload", name: "Tải lên tài liệu" },
-        { id: "documents:edit", name: "Chỉnh sửa tài liệu" },
-        { id: "documents:approve", name: "Phê duyệt tài liệu" },
-        { id: "documents:delete", name: "Xóa tài liệu" },
-        { id: "admin:users:manage", name: "Quản lý người dùng" },
-        { id: "admin:settings", name: "Cài đặt" }
-    ];
+const generateTasks = (count, users, documents) => {
+  const tasks = [];
+  for (let i = 1; i <= count; i++) {
+    const creator = faker.helpers.arrayElement(users);
+    const assignee = faker.helpers.arrayElement(users);
+    const approverCount = faker.number.int({ min: 1, max: 3 });
+    const approvers = Array.from({ length: approverCount }, () => faker.helpers.arrayElement(users))
+      .map(u => u.id);
+    const docCount = faker.number.int({ min: 1, max: 3 });
+    const attachedDocs = Array.from({ length: docCount }, () => faker.helpers.arrayElement(documents))
+      .map(d => d.id);
+    const status = faker.helpers.arrayElement(['open', 'in_progress', 'awaiting_approval', 'approved', 'rejected']);
+    tasks.push({
+      id: 1000 + i,
+      name: faker.lorem.sentence(4),
+      description: faker.lorem.paragraph(),
+      status,
+      assigneeId: assignee.id,
+      approverIds: Array.from(new Set(approvers)),
+      documentIds: Array.from(new Set(attachedDocs)),
+      dueDate: faker.date.soon().toISOString(),
+      createdBy: creator.id,
+      createdAt: faker.date.recent().toISOString(),
+    });
+  }
+  return tasks;
 };
+
+const { PERMISSIONS } = require('../constants/permissions');
+
+const generatePermissions = () => PERMISSIONS;
 
 const generateRoles = () => {
     return [
@@ -129,6 +146,7 @@ const folders = generateFolders(5);
 const documents = generateDocuments(150, users, folders);
 const permissions = generatePermissions();
 const roles = generateRoles();
+const tasks = generateTasks(25, users, documents);
 
 // Add a specific user for login testing
 users.push({
@@ -147,4 +165,5 @@ module.exports = {
   documents,
   roles,
   permissions,
+  tasks,
 };

@@ -10,17 +10,17 @@ import { format } from 'date-fns';
 import CreateTaskDialog from '@/components/CreateTaskDialog.vue';
 
 const toast = useToast();
-
 const tasks = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const isCreateVisible = ref(false);
 const lazyParams = ref({ first: 0, rows: 10 });
 
 async function fetchTasks() {
   loading.value = true;
   error.value = null;
   try {
-    const response = await apiClient.get('/tasks', { params: { scope: 'assigned' } });
+    const response = await apiClient.get('/tasks', { params: { scope: 'created' } });
     tasks.value = response.data.data;
   } catch (err) {
     error.value = 'Không thể tải danh sách công việc.';
@@ -42,9 +42,10 @@ const formatDateTime = (dateString) => (dateString ? format(new Date(dateString)
 </script>
 
 <template>
-  <div class="my-tasks-page">
+  <div class="tasks-mgmt-page">
     <div class="page-header">
-      <h1 class="text-3xl font-bold">Công việc của tôi</h1>
+      <h1 class="text-3xl font-bold">Quản lý công việc</h1>
+      <Button label="Tạo công việc" icon="pi pi-plus" @click="isCreateVisible = true" />
     </div>
 
     <Card class="table-card">
@@ -55,9 +56,7 @@ const formatDateTime = (dateString) => (dateString ? format(new Date(dateString)
           </template>
           <Column field="name" header="Tên"></Column>
           <Column field="status" header="Trạng thái"></Column>
-          <Column header="Hạn xử lý">
-            <template #body="{ data }">{{ formatDateTime(data.duedate) }}</template>
-          </Column>
+          <Column header="Hạn xử lý"><template #body="{ data }">{{ formatDateTime(data.duedate) }}</template></Column>
           <Column header="Chi tiết">
             <template #body="{ data }">
               <Button icon="pi pi-eye" text rounded @click="$router.push({ name: 'task-detail', params: { id: data.id } })" />
@@ -67,11 +66,12 @@ const formatDateTime = (dateString) => (dateString ? format(new Date(dateString)
       </template>
     </Card>
 
+    <CreateTaskDialog :visible="isCreateVisible" @update:visible="isCreateVisible = $event" @created="fetchTasks" />
   </div>
 </template>
 
 <style scoped>
-.my-tasks-page { display: flex; flex-direction: column; gap: 1.5rem; flex: 1; min-height: 0; }
+.tasks-mgmt-page { display: flex; flex-direction: column; gap: 1.5rem; flex: 1; min-height: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; }
 .table-card { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 :deep(.table-card .p-card-body) { display: flex; flex-direction: column; flex: 1; padding: 0; max-height: 100%; }
@@ -80,3 +80,5 @@ const formatDateTime = (dateString) => (dateString ? format(new Date(dateString)
 .text-3xl { font-size: 1.875rem; }
 .font-bold { font-weight: 700; }
 </style>
+
+

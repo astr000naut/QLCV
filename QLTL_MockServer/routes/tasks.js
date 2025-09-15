@@ -5,46 +5,132 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// GET /api/tasks
+// GET /api/tasks - list tasks for user (assigned or created)
 router.get('/', async (req, res) => {
-    // This API returns pending documents for the logged-in user or all pending if admin.
-    try {
-        const user = req.user;
-        let query;
-        let params = [];
+  try {
+    const userId = req.user.id;
+    const scope = (req.query.scope || '').toLowerCase();
 
-        // A simple interpretation: Admins see all pending tasks, others see none.
-        // A more complex system might have explicit assignments.
-        if (user.role === 'Admin') {
-            query = `
-                SELECT d.id, d.name, d.status, d.uploadedAt, u.id as uploader_id, u.name as uploader_name
-                FROM documents d
-                JOIN users u ON d.uploaderId = u.id
-                WHERE d.status = 'pending'
-                ORDER BY d.uploadedAt DESC
-            `;
-        } else {
-            // Non-admins don't see any tasks in this simple model
-            // You could change this to `WHERE d.uploaderId = $1 AND d.status = 'pending'`
-            // if users should see their own pending documents as tasks.
-            query = `SELECT 1 WHERE 1=0`; // Returns no rows
-        }
+    let where = 't.assigneeid = $1 OR t.createdby = $1';
+    if (scope === 'assigned') where = 't.assigneeid = $1';
+    else if (scope === 'created') where = 't.createdby = $1';
+    else if (scope === 'all' && req.user.role === 'Admin') where = '1=1';
 
-        const { rows } = await db.query(query, params);
+    const params = scope === 'all' && req.user.role === 'Admin' ? [] : [userId];
 
-        const tasks = rows.map(d => ({
-            id: d.id,
-            name: d.name,
-            status: d.status,
-            uploader: { id: d.uploader_id, name: d.uploader_name },
-            uploadedAt: d.uploadedat
-        }));
+    const { rows } = await db.query(`
+      SELECT t.id, t.name, t.status, t.duedate, t.createdat,
+             assignee.id as assignee_id, assignee.name as assignee_name,
+             creator.id as creator_id, creator.name as creator_name
+      FROM tasks t
+      LEFT JOIN users assignee ON t.assigneeid = assignee.id
+      LEFT JOIN users creator ON t.createdby = creator.id
+      WHERE ${where}
+      ORDER BY t.createdat DESC
+    `, params);
 
-        res.json(tasks);
-    } catch (error) {
-        console.error('Failed to get tasks:', error);
-        res.status(500).json({ message: 'Failed to retrieve tasks.' });
+    res.json({ data: rows });
+  } catch (error) {
+    console.error('Failed to get tasks:', error);
+    res.status(500).json({ message: 'Failed to retrieve tasks.' });
+  }
+});
+
+// POST /api/tasks - create task
+router.post('/', async (req, res) => {
+  const { name, description, assigneeId, approverIds = [], dueDate, documentIds = [] } = req.body;
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const taskRes = await client.query(
+      `INSERT INTO tasks (name, description, status, assigneeId, dueDate, createdBy)
+       VALUES ($1, $2, 'open', $3, $4, $5) RETURNING id`,
+      [name, description || '', assigneeId || null, dueDate || null, req.user.id]
+    );
+    const taskId = taskRes.rows[0].id;
+
+    for (const approverId of approverIds) {
+      await client.query('INSERT INTO task_approvers (taskId, approverId) VALUES ($1, $2)', [taskId, approverId]);
     }
+    for (const documentId of documentIds) {
+      await client.query('INSERT INTO task_documents (taskId, documentId) VALUES ($1, $2)', [taskId, documentId]);
+    }
+    await client.query('INSERT INTO task_history (taskId, action, actorId, comment) VALUES ($1, $2, $3, $4)', [taskId, 'created', req.user.id, null]);
+    await client.query('COMMIT');
+    res.status(201).json({ id: taskId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Failed to create task:', error);
+    res.status(500).json({ message: 'Failed to create task.' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/tasks/:id - task detail
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const taskRes = await db.query(`
+      SELECT t.*, assignee.name as assignee_name, creator.name as creator_name
+      FROM tasks t
+      LEFT JOIN users assignee ON t.assigneeid = assignee.id
+      LEFT JOIN users creator ON t.createdby = creator.id
+      WHERE t.id = $1
+    `, [id]);
+    if (taskRes.rows.length === 0) return res.status(404).json({ message: 'Task not found' });
+    const task = taskRes.rows[0];
+
+    const approversRes = await db.query(`
+      SELECT u.id, u.name FROM task_approvers ta JOIN users u ON ta.approverid = u.id WHERE ta.taskid = $1
+    `, [id]);
+    const documentsRes = await db.query(`
+      SELECT d.id, d.name, d.status, d.fileUrl
+      FROM task_documents td JOIN documents d ON td.documentid = d.id WHERE td.taskid = $1
+    `, [id]);
+    const historyRes = await db.query(`
+      SELECT th.id, th.action, th.comment, th.timestamp, u.id as actor_id, u.name as actor_name
+      FROM task_history th LEFT JOIN users u ON th.actorid = u.id WHERE th.taskid = $1 ORDER BY th.timestamp DESC
+    `, [id]);
+    const messagesRes = await db.query(`
+      SELECT tm.id, tm.message, tm.sentat, u.id as sender_id, u.name as sender_name
+      FROM task_messages tm LEFT JOIN users u ON tm.senderid = u.id WHERE tm.taskid = $1 ORDER BY tm.sentat DESC
+    `, [id]);
+
+    res.json({
+      id: task.id,
+      name: task.name,
+      description: task.description,
+      status: task.status,
+      dueDate: task.duedate,
+      assignee: task.assigneeid ? { id: task.assigneeid, name: task.assignee_name } : null,
+      createdBy: task.createdby ? { id: task.createdby, name: task.creator_name } : null,
+      createdAt: task.createdat,
+      approvers: approversRes.rows,
+      documents: documentsRes.rows.map(d => ({ id: d.id, name: d.name, status: d.status, fileUrl: d.fileurl })),
+      history: historyRes.rows,
+      messages: messagesRes.rows
+    });
+  } catch (error) {
+    console.error('Failed to get task detail:', error);
+    res.status(500).json({ message: 'Failed to retrieve task detail.' });
+  }
+});
+
+// POST /api/tasks/:id/messages - add message
+router.post('/:id/messages', async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body;
+  try {
+    const { rows } = await db.query(
+      'INSERT INTO task_messages (taskId, senderId, message) VALUES ($1, $2, $3) RETURNING id, sentAt',
+      [id, req.user.id, message]
+    );
+    res.status(201).json({ id: rows[0].id, sentAt: rows[0].sentat });
+  } catch (error) {
+    console.error('Failed to add message:', error);
+    res.status(500).json({ message: 'Failed to add message.' });
+  }
 });
 
 module.exports = router;

@@ -285,9 +285,7 @@ Lấy danh sách tài liệu.
           "name": "Báo cáo quý 1",
           "status": "approved",
           "uploader": { "name": "Văn A" },
-          "handler": { "name": "Thị B" },
           "uploadedAt": "2023-10-26T14:00:00Z",
-          "deadline": "2023-11-26T14:00:00Z",
           "folderId": 1
         }
       ],
@@ -328,9 +326,7 @@ Lấy chi tiết một tài liệu.
       "status": "approved",
       "fileUrl": "https://example.com/files/bao-cao-q1.pdf",
       "uploader": { "id": 1, "name": "Văn A" },
-      "handler": { "id": 2, "name": "Thị B" },
       "uploadedAt": "2023-10-26T14:00:00Z",
-      "deadline": "2023-11-26T14:00:00Z",
       "folderId": 1,
       "history": [
         { "action": "Uploaded", "user": "Văn A", "timestamp": "2023-10-26T14:00:00Z" },
@@ -348,8 +344,6 @@ Tải lên một tài liệu mới. Request này nên là `multipart/form-data`.
     -   `name`: Tên tài liệu.
     -   `description`: Mô tả.
     -   `folderId`: ID của thư mục.
-    -   `handlerId`: ID của người xử lý.
-    -   `deadline`: Hạn xử lý (ISO 8601 format string).
 -   **Response (201 Created)**: Trả về thông tin tài liệu vừa tạo.
 
 ### `PUT /api/documents/{id}`
@@ -360,9 +354,7 @@ Cập nhật thông tin của tài liệu.
     ```json
     {
       "name": "Báo cáo quý 1 (Final)",
-      "description": "Bản cuối cùng của báo cáo.",
-      "handlerId": 2,
-      "deadline": "2023-12-01T17:00:00Z"
+      "description": "Bản cuối cùng của báo cáo."
     }
     ```
 -   **Response (200 OK)**: Trả về thông tin tài liệu vừa cập nhật.
@@ -455,23 +447,68 @@ Xóa một thư mục (có thể yêu cầu thư mục phải rỗng).
 
 ---
 
-## 6. Tác vụ của tôi (My Tasks)
+## 6. Công việc (Tasks)
 
 ### `GET /api/tasks`
 
-Lấy danh sách các tài liệu đang chờ người dùng hiện tại xử lý (phê duyệt/từ chối).
+Lấy danh sách công việc người dùng được giao hoặc tạo.
+
+-   **Response (200 OK)**:
+  - Query Params:
+    - `scope`: `assigned` (của tôi), `created` (tôi tạo), `all` (chỉ Admin)
+    ```json
+    {
+      "data": [
+        { "id": 1, "name": "Xử lý hồ sơ A", "status": "open", "dueDate": "2025-09-20T10:00:00Z" }
+      ]
+    }
+    ```
+
+### `POST /api/tasks`
+
+Tạo công việc mới.
+
+-   **Request Body**:
+    ```json
+    {
+      "name": "Xử lý hồ sơ A",
+      "description": "...",
+      "assigneeId": 2,
+      "approverIds": [3,4],
+      "dueDate": "2025-09-20T10:00:00Z",
+      "documentIds": [101,102]
+    }
+    ```
+
+### `GET /api/tasks/{id}`
+
+Lấy chi tiết công việc.
 
 -   **Response (200 OK)**:
     ```json
-    [
-      {
-        "id": 102,
-        "name": "Hợp đồng ABC",
-        "status": "pending",
-        "uploader": { "name": "Thị B" },
-        "uploadedAt": "2023-10-27T11:30:00Z"
-      }
-    ]
+    {
+      "id": 1,
+      "name": "Xử lý hồ sơ A",
+      "description": "...",
+      "status": "open",
+      "dueDate": "2025-09-20T10:00:00Z",
+      "assignee": { "id": 2, "name": "User B" },
+      "createdBy": { "id": 1, "name": "Admin" },
+      "createdAt": "2025-09-15T09:00:00Z",
+      "approvers": [{ "id": 3, "name": "User C" }],
+      "documents": [{ "id": 101, "name": "File A", "status": "pending" }],
+      "history": [{ "id": 1, "action": "created", "timestamp": "...", "actor_id": 1, "actor_name": "Admin" }],
+      "messages": [{ "id": 1, "message": "Trao đổi...", "sentAt": "...", "sender_id": 2, "sender_name": "User B" }]
+    }
+    ```
+
+### `POST /api/tasks/{id}/messages`
+
+Gửi tin nhắn trong công việc.
+
+-   **Request Body**:
+    ```json
+    { "message": "Nội dung tin nhắn" }
     ```
 
 ---

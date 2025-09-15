@@ -3,27 +3,29 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import Menu from 'primevue/menu';
 import { useAuthStore } from '@/stores/auth';
+import { PERMISSIONS } from '@/constants/permissions';
 
 const route = useRoute();
 const authStore = useAuthStore();
 
 const allNavigationItems = [
   // Báo cáo
-  { label: 'Báo cáo', icon: 'pi pi-chart-line', to: '/reports', requiredPermission: 'reports:overview' },
+  { label: 'Báo cáo', icon: 'pi pi-chart-line', to: '/reports', requiredPermission: PERMISSIONS.REPORTS_OVERVIEW },
   
   // Tài liệu
-  { label: 'Tài liệu', icon: 'pi pi-file', to: '/documents', requiredPermission: 'documents:list' },
-  { label: 'Tải lên', icon: 'pi pi-upload', to: '/upload', requiredPermission: 'documents:upload' },
-  { label: 'Chờ duyệt', icon: 'pi pi-clock', to: '/pending', requiredPermission: 'documents:approve' },
+  { label: 'Tài liệu', icon: 'pi pi-file', to: '/documents', requiredPermission: PERMISSIONS.DOCUMENTS_LIST },
+  // Upload moved to dialog inside Documents; remove separate menu item
+  { label: 'Chờ duyệt', icon: 'pi pi-clock', to: '/pending', requiredPermission: PERMISSIONS.DOCUMENTS_APPROVE },
   
   // Công việc
-  { label: 'Công việc của tôi', icon: 'pi pi-check-square', to: '/my-tasks' },
+  { label: 'Công việc của tôi', icon: 'pi pi-briefcase', to: '/my-tasks' },
+  { label: 'Quản lý công việc', icon: 'pi pi-sitemap', to: '/tasks' },
   { label: 'Đã hoàn thành', icon: 'pi pi-check-square', to: '/completed' },
 
   // Quản trị
-  { label: 'Quản lý người dùng', icon: 'pi pi-users', to: '/users', requiredPermission: 'admin:users:manage', group: 'Quản trị' },
-  { label: 'Vai trò & Phân quyền', icon: 'pi pi-key', to: '/roles', requiredPermission: 'admin:settings', group: 'Quản trị' },
-  { label: 'Cài đặt', icon: 'pi pi-cog', to: '/settings', requiredPermission: 'admin:settings', group: 'Quản trị' },
+  { label: 'Quản lý người dùng', icon: 'pi pi-users', to: '/users', requiredPermission: PERMISSIONS.ADMIN_USERS_MANAGE, group: 'Quản trị' },
+  { label: 'Vai trò & Phân quyền', icon: 'pi pi-key', to: '/roles', requiredPermission: PERMISSIONS.ADMIN_SETTINGS, group: 'Quản trị' },
+  { label: 'Cài đặt', icon: 'pi pi-cog', to: '/settings', requiredPermission: PERMISSIONS.ADMIN_SETTINGS, group: 'Quản trị' },
 ];
 
 const menuItems = computed(() => {
