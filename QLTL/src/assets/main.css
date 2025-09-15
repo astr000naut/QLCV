@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+}
+
+/* ==========================================================================
+   CUSTOM COMPONENT STYLING
+   ========================================================================== */
+
+/* Standardize form element height for better consistency */
+:root {
+    --form-element-height: 42px;
+    --input-padding-y: 0.625rem; /* 10px */
+    --input-padding-x: 0.75rem;  /* 12px */
+    --button-padding-y: 0.625rem;
+    --button-padding-x: 1.25rem; /* 20px */
+}
+
+/* Targetting various input-like components from PrimeVue */
+.p-inputtext,
+.p-dropdown,
+.p-datepicker .p-inputtext,
+.p-multiselect,
+.p-inputnumber-input {
+    height: var(--form-element-height);
+    display: flex !important;
+    align-items: center !important;
+    padding-top: var(--input-padding-y);
+    padding-bottom: var(--input-padding-y);
+}
+
+/* Buttons */
+.p-button {
+    height: var(--form-element-height);
+}
+
+/* Special handling for icon-only buttons to maintain a square shape */
+.p-button.p-button-icon-only {
+    width: var(--form-element-height);
+    padding: 0; /* Reset padding to center the icon */
+}
+
+/* Ensure the text/label inside dropdowns is vertically centered */
+.p-dropdown .p-dropdown-label {
+    display: flex;
+    align-items: center;
+    padding-top: var(--input-padding-y);
+    padding-bottom: var(--input-padding-y);
+}
