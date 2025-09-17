@@ -1,0 +1,5 @@
+# Cursor Rules
+
+# Always keep Memory Bank updated.
+# Use PowerShell-safe, one-command-at-a-time execution.
+# Track tasks in memory-bank/tasks.md as source of truth.
